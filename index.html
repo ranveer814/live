@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Parking Detector</title>
+</head>
+<body>
+  <h2>🚘 Parking Status (Auto Detect)</h2>
+  <video id="video" width="640" height="480" autoplay></video>
+  <pre id="result"></pre>
+
+  <script>
+    const video = document.getElementById('video');
+    const resultDisplay = document.getElementById('result');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      });
+
+    setInterval(async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('file', blob, 'frame.jpg');
+
+        try {
+          const res = await fetch('/detect', {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await res.json();
+          resultDisplay.textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+          console.error('Detection failed:', err);
+        }
+      }, 'image/jpeg');
+    }, 3000);
+  </script>
+</body>
+</html>
