@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 import numpy as np
@@ -8,7 +8,6 @@ import requests
 
 app = FastAPI()
 
-# CORS setup for browser access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,8 +17,12 @@ app.add_middleware(
 
 model = YOLO("yolov8n.pt")
 
-# Replace with your receiver web app endpoint
-RECEIVER_URL = "https://liveparking1.onrender/receive"
+RECEIVER_URL = "https://liveparking1.onrender.com/receive"
+
+@app.get("/", response_class=HTMLResponse)
+def serve_index():
+    with open("index.html", "r") as f:
+        return f.read()
 
 @app.post("/detect")
 async def detect_car(file: UploadFile = File(...)):
@@ -34,7 +37,7 @@ async def detect_car(file: UploadFile = File(...)):
     car_boxes = []
     for box in results.boxes.data.tolist():
         x1, y1, x2, y2, conf, cls = box
-        if int(cls) == 2:  # 'car' class
+        if int(cls) == 2:  # car
             center_x = (x1 + x2) / 2
             car_boxes.append(center_x)
 
@@ -47,7 +50,6 @@ async def detect_car(file: UploadFile = File(...)):
         else:
             slots["Slot 3"] = "Occupied"
 
-    # 🔁 Send result to receiver web app
     try:
         requests.post(RECEIVER_URL, json=slots)
     except Exception as e:
@@ -55,8 +57,6 @@ async def detect_car(file: UploadFile = File(...)):
 
     return JSONResponse(content=slots)
 
-
-# 👇 Optional block to run with `python main.py`
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
